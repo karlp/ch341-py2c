@@ -14,3 +14,5 @@ http://common-codebase.googlecode.com/svn-history/r70/trunk/others/python_test/i
 More links here:
 https://hackingbtbusinesshub.wordpress.com/category/ch341/
 
+Lots more datasheets and links down a bit on this thread:
+http://www.kenotrontv.ru/forum/topic/199-usb-%D0%BF%D1%80%D0%BE%D0%B3%D1%80%D0%B0%D0%BC%D0%BC%D0%B0%D1%82%D0%BE%D1%80-%D0%B4%D0%BB%D1%8F-flash-%D0%B8-eeprom-usb-bus-convert-chip-ch341/
