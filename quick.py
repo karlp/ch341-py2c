@@ -125,8 +125,16 @@ class CH341():
                I2CCommands.STA,
                I2CCommands.OUT | len(eep_cmd),
                ] + eep_cmd
-        log.debug("writing: %s", cmd)
-        self.dev.write(2, cmd)
+        cmd += [I2CCommands.STA, I2CCommands.OUT | 1, address | 1] # Write address
+        assert(count < 20) # Can't handle this yet
+        cmd += [I2CCommands.IN | count]
+        # Do I need count padding here?
+        cmd += [I2CCommands.STO, I2CCommands.END]
+        log.debug("writing: %s", [hex(cc) for cc in cmd])
+        cnt = self.dev.write(2, cmd)
+        assert(cnt == len(cmd))
+        q = self.dev.read(0x82, count)
+        return q
         # TODO - need to read in now :)
 
 
@@ -134,6 +142,6 @@ class CH341():
 if __name__ == "__main__":
     q = CH341()
     q.set_speed(100)
-    x = q.eeprom_read(0x40, 0, 4)
-    x = q.eeprom_read(0x40, 0x55, 4)
+    x = q.eeprom_read(0xa0, 0, 8)
+    print([hex(z) for z in x])
     log.info("received: %s", x)
