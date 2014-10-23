@@ -126,17 +126,16 @@ class CH341():
                I2CCommands.OUT | len(eep_cmd),
                ] + eep_cmd
         cmd += [I2CCommands.STA, I2CCommands.OUT | 1, address | 1] # Write address
-        assert(count < 20) # Can't handle this yet
-        cmd += [I2CCommands.IN | count]
-        # Do I need count padding here?
-        cmd += [I2CCommands.STO, I2CCommands.END]
-        log.debug("writing: %s", [hex(cc) for cc in cmd])
-        cnt = self.dev.write(2, cmd)
-        assert(cnt == len(cmd))
-        q = self.dev.read(0x82, count)
-        return q
-        # TODO - need to read in now :)
-
+        if (count <= 32):
+            cmd += [I2CCommands.IN | count - 1]
+            cmd += [I2CCommands.IN, I2CCommands.STO, I2CCommands.END]
+            log.debug("writing: %s", [hex(cc) for cc in cmd])
+            cnt = self.dev.write(2, cmd)
+            assert(cnt == len(cmd))
+            q = self.dev.read(0x82, count)
+            return q
+        else:
+            raise ValueError("Can't handler reads longer than 32 bytes yet")
 
 
 if __name__ == "__main__":
