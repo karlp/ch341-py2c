@@ -141,7 +141,8 @@ class CH341():
                 # Waits can be inserted here too
                 I2CCommands.OUT | 1, address | 1] # Write address
         if (count <= 32):
-            cmd += [I2CCommands.IN | count - 1]
+            if count > 1: # ie, only include the IN|len if you have something to | in.
+                cmd += [I2CCommands.IN | count - 1]
             cmd += [I2CCommands.IN, I2CCommands.STO, I2CCommands.END]
             log.debug("writing: %s", [hex(cc) for cc in cmd])
             cnt = self.dev.write(2, cmd)
@@ -149,12 +150,60 @@ class CH341():
             q = self.dev.read(0x82, count)
             return q
         else:
-            raise ValueError("Can't handler reads longer than 32 bytes yet")
+            cmd += [I2CCommands.IN | 32]
+            cmd += [0 for x in range(32 - len(cmd))] # pad to start of next 32?
 
+            cmd += [VendorCommands.I2C]
+            if count - 1 - 32 > 0:
+                cmd += [I2CCommands.IN | (count - 1 - 32)]
+            cmd += [I2CCommands.IN, I2CCommands.STO, I2CCommands.END]
+
+            cnt = self.dev.write(2, cmd)
+            assert(cnt == len(cmd))
+            read_count = 0
+            rval = []
+            while read_count < count:
+                q = self.dev.read(0x82, count - read_count)
+                read_count += len(q)
+                rval += q
+
+            return rval
+
+
+# them 64 0x40 (same as me)
+#0000   aa 74 82 a0 00 74 81 a1 e0 00 12 00 02 00 00 00
+#0010   01 00 00 00 24 e1 12 00 34 00 30 00 00 00 00 00
+#0020   aa df c0 75 00
+#them 65 0x41
+#0000   aa 74 82 a0 00 74 81 a1 e0 00 12 00 02 00 00 00
+#0010   01 00 00 00 24 e1 12 00 2e e1 12 00 02 00 00 00
+#0020   aa e0 00 00 e8 ee 97 7c 00 00 00 00 17 a8 42 73
+#0030   1e 00 00 00 e8 ee 97 7c cc 3e c8 00 00 00 00 00
+#0040   aa c0 75 00
+# my 65
+#0000   aa 74 82 a0 00 74 81 a1 e0 00 00 00 00 00 00 00
+#0010   00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+#0020   aa e0 c0 75 00
+
+#them 66
+#0000   aa 74 82 a0 00 74 81 a1 e0 00 12 00 02 00 00 00
+#0010   01 00 00 00 24 e1 12 00 2e e1 12 00 02 00 00 00
+#0020   aa e0 00 00 e8 ee 97 7c 00 00 00 00 17 a8 42 73
+#0030   1e 00 00 00 e8 ee 97 7c cc 3e c8 00 00 00 00 00
+#0040   aa c1 c0 75 00
+
+#them 0x80 (setup, then aa e0 at 32bytes pads, til the regular trailer
+#0000   aa 74 82 a0 00 74 81 a1 e0 00 12 00 02 00 00 00
+#0010   01 00 00 00 24 e1 12 00 2e e1 12 00 02 00 00 00
+#0020   aa e0 00 00 e8 ee 97 7c 00 00 00 00 17 a8 42 73
+#0030   1e 00 00 00 e8 ee 97 7c 35 04 91 7c 00 00 00 00
+#0040   aa e0 00 00 3c 00 08 02 35 04 91 7c 3e 04 91 7c
+#0050   d0 e3 12 00 24 00 02 00 a0 e1 12 00 02 00 00 00
+#0060   aa df c0 75 00
 
 if __name__ == "__main__":
     q = CH341()
-    q.set_speed(100)
-    x = q.eeprom_read(0xa0, 0, 8)
+    q.set_speed(400)
+    x = q.eeprom_read(0xa0, 0, 65)
     print([hex(z) for z in x])
     log.info("received: %d bytes: %s", len(x), x)
