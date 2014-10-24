@@ -157,4 +157,4 @@ if __name__ == "__main__":
     q.set_speed(100)
     x = q.eeprom_read(0xa0, 0, 8)
     print([hex(z) for z in x])
-    log.info("received: %s", x)
+    log.info("received: %d bytes: %s", len(x), x)
