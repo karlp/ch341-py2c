@@ -48,13 +48,21 @@ class VendorCommands():
 
 class I2CCommands():
     # These are all from ch341dll.h, mostly untested
+    """
+    After STA, you can insert MS|millis, and US|usecs to insert a delay
+    (you can insert multiple)
+    MS|0 = 250ms wait,
+    US|0 = ~260usecs?
+    US|10 is ~10usecs,
+    be careful, US|20 = MS|4!  US|40 = ? (switched back to 20khz mode)
+    """
     STA = 0x74
     STO = 0x75
     OUT = 0x80
     IN = 0xc0
     MAX = 32 # min (0x3f, 32) ?!
     SET = 0x60 # 0 = 20
-    US = 0x40
+    US = 0x40 # vendor code uses a few of these in 20khz mode?
     MS = 0x50
     DLY = 0x0f
     END = 0x00 # Finish commands with this. is this really necessary?
@@ -90,6 +98,9 @@ class CH341():
         Set the i2c speed desired
         :param speed: in khz, will round down to 20, 100, 400, 750
         :return: na
+        20 and 100 work well, 400 is not entirely square, but I don't think it's meant to be
+        750 is closer to 1000 for bytes, but slower around acks and each byte start.
+        All seem to work well.
         """
         sbit = 1
         if speed < 100:
@@ -123,9 +134,12 @@ class CH341():
         eep_cmd = [address | (start >> 7) & 0x0e, (start & 0xff)]
         cmd = [VendorCommands.I2C,
                I2CCommands.STA,
+               # waits can be inserted here
                I2CCommands.OUT | len(eep_cmd),
                ] + eep_cmd
-        cmd += [I2CCommands.STA, I2CCommands.OUT | 1, address | 1] # Write address
+        cmd += [I2CCommands.STA,
+                # Waits can be inserted here too
+                I2CCommands.OUT | 1, address | 1] # Write address
         if (count <= 32):
             cmd += [I2CCommands.IN | count - 1]
             cmd += [I2CCommands.IN, I2CCommands.STO, I2CCommands.END]
