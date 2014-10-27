@@ -40,6 +40,8 @@ class VendorCommands():
     SERIAL = 0xa1
     PRINT = 0xa3
     MODEM = 0xa4
+    MEMW = 0xa6 # aka mCH341_PARA_CMD_W0
+    MEMR = 0xac # aka mCH341_PARA_CMD_R0
     SPI = 0xa8
     SIO = 0xa9
     I2C = 0xaa
@@ -62,8 +64,8 @@ class I2CCommands():
     STO = 0x75
     OUT = 0x80
     IN = 0xc0
-    MAX = 32 # min (0x3f, 32) ?!
-    SET = 0x60 # 0 = 20
+    MAX = 32 # min (0x3f, 32) ?! (wrong place for this)
+    SET = 0x60 # bit 7 apparently SPI bit order, bit 2 spi single vs spi double
     US = 0x40 # vendor code uses a few of these in 20khz mode?
     MS = 0x50
     DLY = 0x0f
