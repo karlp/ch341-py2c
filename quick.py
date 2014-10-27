@@ -44,6 +44,8 @@ class VendorCommands():
     SIO = 0xa9
     I2C = 0xaa
     UIO = 0xab
+    I2C_STATUS = 0x52
+    I2C_COMMAND = 0x53
     VERSION = 0x5f # at least in serial mode?
 
 class I2CCommands():
@@ -67,6 +69,52 @@ class I2CCommands():
     DLY = 0x0f
     END = 0x00 # Finish commands with this. is this really necessary?
 
+class PinState():
+    """
+    This is kinda gross, should be a more pythonic way of doing this?
+    I've verified this works on a few pins, not sure about all of them, d7..d0 work.
+
+    """
+    ERR = 0x100 # read-write
+    PEMP = 0x200 # read-write
+    INT = 0x400 # read-write
+    SLCT = 0x800 # read-write
+    WAIT = 0x2000 # read-write
+    DATAS = 0x4000 # "write readable only" ?!
+    ADDRS = 0x8000 # "write readable only" ?!
+    RESET = 0x10000 # "just write"
+    WRITE = 0x20000 # "just write"
+    SCL = 0x400000 # read-only
+    SDA = 0x800000 # read-only
+    DXX = 0xff000000
+    def __init__(self, bits):
+        if (type(bits) != type(int)):
+            # assume it's the raw field from reading i2c status
+            out = struct.unpack_from(">IH", bytearray(bits))
+            bits = out[0]
+            # TODO - no clue what the last word is for.
+        s = []
+        if bits & self.ERR: s += ["ERR"]
+        if bits & self.PEMP: s += ["PEMP"]
+        if bits & self.INT: s += ["INT"]
+        if bits & self.SLCT: s += ["SLCT"]
+        if bits & self.WAIT: s += ["WAIT"]
+        if bits & self.DATAS: s += ["DATAS"]
+        if bits & self.ADDRS: s += ["ADDRS"]
+        if bits & self.RESET: s += ["RESET"]
+        if bits & self.WRITE: s += ["WRITE"]
+        if bits & self.SCL: s += ["SCL"]
+        if bits & self.SDA: s += ["SDA"]
+        if bits & self.DXX:
+            datax = (bits & self.DXX) >> 24
+            for i in range(8):
+                if (1<<i) & datax:
+                    s += ["D%d" % i]
+        self.as_bits = bits
+        self.names = s
+
+    def __str__(self):
+        return "Pins[" + ",".join(self.names) + "]"
 
 class CH341():
     """
@@ -98,6 +146,8 @@ class CH341():
         #                request, VENDOR_READ_TYPE, value, index, buf, len, 1000 );
         vv = self.vendor_read(VendorCommands.VERSION, 0, 0, 2)
         log.info("vendor version = %d.%d (%x.%x)", vv[0], vv[1], vv[0], vv[1])
+        iss = self.vendor_read(VendorCommands.I2C_STATUS, 0, 0, 8)
+        log.debug("i2c status = %s, pins = %s", iss, PinState(iss))
 
     def set_speed(self, speed=100):
         """
@@ -150,9 +200,13 @@ class CH341():
             if count > 1: # ie, only include the IN|len if you have something to | in.
                 cmd += [I2CCommands.IN | count - 1]
             cmd += [I2CCommands.IN, I2CCommands.STO, I2CCommands.END]
+            iss = self.vendor_read(VendorCommands.I2C_STATUS, 0, 0, 8)
+            log.debug("i2c status = %s, pins = %s", iss, PinState(iss))
             log.debug("writing: %s", [hex(cc) for cc in cmd])
             cnt = self.dev.write(self.EP_OUT, cmd)
             assert(cnt == len(cmd))
+            iss = self.vendor_read(VendorCommands.I2C_STATUS, 0, 0, 8)
+            log.debug("i2c status = %s, pins = %s", iss, PinState(iss))
             q = self.dev.read(self.EP_IN, count)
             return q
         else:
