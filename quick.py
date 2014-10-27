@@ -193,6 +193,21 @@ class CH341():
         cnt = self.dev.write(self.EP_OUT, cmd)
         assert(cnt == len(cmd))
 
+    def i2c_detect(self, addr):
+        """
+        Use the single byte write style to get an ack bit from writing to an address with no commands.
+        :param addr:
+        :return: true if the address was acked.
+        """
+        cmd = [VendorCommands.I2C,
+               I2CCommands.STA, I2CCommands.OUT, addr, I2CCommands.STO, I2CCommands.END]
+        log.debug("writing: %s", [hex(cc) for cc in cmd])
+        cnt = self.dev.write(self.EP_OUT, cmd)
+        assert(cnt == len(cmd))
+        rval = self.dev.read(self.EP_IN, I2CCommands.MAX)
+        assert(len(rval) == 1)
+        return not (rval[0] & 0x80)
+
     def i2c_write_byte_check(self, bb):
         """
         write a byte and return the ack bit
@@ -334,10 +349,20 @@ def test_manual(q):
     print([hex(z) for z in data])
     q.i2c_stop()
 
+def scan(q):
+    results = []
+    for i in range(250):
+        r = q.i2c_detect(i)
+        print("address: %d (%#x) is: %s" % (i, i, r))
+        if r: results += [i]
+    print("Responses from i2c devices at: ", results, [hex(a) for a in results])
+
+
 if __name__ == "__main__":
     q = CH341()
     q.set_speed(400)
-    x = q.eeprom_read(0xa0, 0, 65)
-    print([hex(z) for z in x])
-    log.info("received: %d bytes: %s", len(x), x)
+    #x = q.eeprom_read(0xa0, 0, 65)
+    #print([hex(z) for z in x])
+    #log.info("received: %d bytes: %s", len(x), x)
     #test_manual(q)
+    scan(q)
