@@ -210,7 +210,11 @@ class CH341():
             q = self.dev.read(self.EP_IN, count)
             return q
         else:
-            cmd += [I2CCommands.IN | 32]
+            # need a 32 byte pad block and 	memset(buf, 0x55, sizeof(buf));
+#[aa][e0][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
+#[00][00][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
+            # for every chunk.
+            cmd += [I2CCommands.IN | 32] # 0xe0
             cmd += [0 for x in range(32 - len(cmd))] # pad to start of next 32?
 
             cmd += [VendorCommands.I2C]
@@ -222,6 +226,7 @@ class CH341():
             assert(cnt == len(cmd))
             read_count = 0
             rval = []
+            # reads need to be in chunks of up to 32.
             while read_count < count:
                 q = self.dev.read(self.EP_IN, count - read_count)
                 read_count += len(q)
@@ -260,6 +265,16 @@ class CH341():
 #0040   aa e0 00 00 3c 00 08 02 35 04 91 7c 3e 04 91 7c
 #0050   d0 e3 12 00 24 00 02 00 a0 e1 12 00 02 00 00 00
 #0060   aa df c0 75 00
+#usbi2c read 0x80
+#writing 101 bytes, read_step = 32, read times = 4
+#[aa][74][82][a0][00][74][81][a1][e0][00][00][00][00][00][00][00]
+#[00][00][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
+#[aa][e0][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
+#[00][00][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
+#[aa][e0][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
+#[00][00][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
+#[aa][df][c0][75][00]
+
 
 if __name__ == "__main__":
     q = CH341()
