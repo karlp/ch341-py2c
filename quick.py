@@ -176,6 +176,53 @@ class CH341():
         count = self.dev.write(self.EP_OUT, cmd)
         assert count == len(cmd), "Failed to write cmd to usb"
 
+    def i2c_start(self):
+        """
+        Just a start bit...
+        :return:
+        """
+        cmd = [VendorCommands.I2C, I2CCommands.STA, I2CCommands.END]
+        log.debug("writing: %s", [hex(cc) for cc in cmd])
+        cnt = self.dev.write(self.EP_OUT, cmd)
+        assert(cnt == len(cmd))
+
+    def i2c_stop(self):
+        # This doesn't seem to be very reliable :(
+        cmd = [VendorCommands.I2C, I2CCommands.STO, I2CCommands.END]
+        log.debug("writing: %s", [hex(cc) for cc in cmd])
+        cnt = self.dev.write(self.EP_OUT, cmd)
+        assert(cnt == len(cmd))
+
+    def i2c_write_byte_check(self, bb):
+        """
+        write a byte and return the ack bit
+        :param bb: byte to write
+        :return: true for ack, false for nak
+        """
+        cmd = [VendorCommands.I2C, I2CCommands.OUT, bb, I2CCommands.END]
+        log.debug("writing: %s", [hex(cc) for cc in cmd])
+        cnt = self.dev.write(self.EP_OUT, cmd)
+        assert(cnt == len(cmd))
+        rval = self.dev.read(self.EP_IN, I2CCommands.MAX)
+        assert(len(rval) == 1)
+        return not (rval[0] & 0x80)
+        log.debug("read in %s", rval)
+
+    def i2c_read_block(self, length):
+        """
+        Requests a read of up to 32 bytes
+        :return: array of data
+        """
+        # not sure why/if this needs a -1 like I seemed to elsewhere
+        #cmd = [VendorCommands.I2C, I2CCommands.IN | length, I2CCommands.END]
+        cmd = [VendorCommands.I2C, I2CCommands.IN, I2CCommands.END]
+        cnt = self.dev.write(self.EP_OUT, cmd)
+        assert(cnt == len(cmd))
+        rval = self.dev.read(self.EP_IN, I2CCommands.MAX)
+        print(len(rval), length)
+        log.debug("read in %s", rval)
+        return rval
+
     def eeprom_read(self, address, start, count):
         """
         Issue an i2c read (single byte addressing, 24cxx styleee)
@@ -277,6 +324,15 @@ class CH341():
 #[00][00][00][00][00][00][00][00][00][00][00][00][00][00][00][00]
 #[aa][df][c0][75][00]
 
+def test_manual(q):
+    q.i2c_start()
+    print(q.i2c_write_byte_check(0xa0))
+    print(q.i2c_write_byte_check(0x00))
+    q.i2c_start()
+    print(q.i2c_write_byte_check(0xa1))
+    data = q.i2c_read_block(6)
+    print([hex(z) for z in data])
+    q.i2c_stop()
 
 if __name__ == "__main__":
     q = CH341()
@@ -284,3 +340,4 @@ if __name__ == "__main__":
     x = q.eeprom_read(0xa0, 0, 65)
     print([hex(z) for z in x])
     log.info("received: %d bytes: %s", len(x), x)
+    #test_manual(q)
