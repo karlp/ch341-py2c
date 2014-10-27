@@ -69,6 +69,12 @@ class I2CCommands():
 
 
 class CH341():
+    """
+    TODO - make this behave more like python-smbus. (be as api compat as possible!)
+    """
+    EP_OUT = 2
+    EP_IN = 0x82
+
     def vendor_read(self, req, wValue, wIndex, len):
         return self.dev.ctrl_transfer(CtrlCommands.READ_TYPE, req, wValue, wIndex, len)
 
@@ -115,7 +121,7 @@ class CH341():
         # TODO ^ how does linux handle this sort of stuff normally?
         # logging when it doesn't match?
         cmd = [VendorCommands.I2C, I2CCommands.SET | sbit, I2CCommands.END]
-        count = self.dev.write(2, cmd)
+        count = self.dev.write(self.EP_OUT, cmd)
         assert count == len(cmd), "Failed to write cmd to usb"
 
     def eeprom_read(self, address, start, count):
@@ -145,9 +151,9 @@ class CH341():
                 cmd += [I2CCommands.IN | count - 1]
             cmd += [I2CCommands.IN, I2CCommands.STO, I2CCommands.END]
             log.debug("writing: %s", [hex(cc) for cc in cmd])
-            cnt = self.dev.write(2, cmd)
+            cnt = self.dev.write(self.EP_OUT, cmd)
             assert(cnt == len(cmd))
-            q = self.dev.read(0x82, count)
+            q = self.dev.read(self.EP_IN, count)
             return q
         else:
             cmd += [I2CCommands.IN | 32]
@@ -158,12 +164,12 @@ class CH341():
                 cmd += [I2CCommands.IN | (count - 1 - 32)]
             cmd += [I2CCommands.IN, I2CCommands.STO, I2CCommands.END]
 
-            cnt = self.dev.write(2, cmd)
+            cnt = self.dev.write(self.EP_OUT, cmd)
             assert(cnt == len(cmd))
             read_count = 0
             rval = []
             while read_count < count:
-                q = self.dev.read(0x82, count - read_count)
+                q = self.dev.read(self.EP_IN, count - read_count)
                 read_count += len(q)
                 rval += q
 
